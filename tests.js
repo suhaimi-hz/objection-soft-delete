@@ -7,6 +7,8 @@ const Model = require('objection').Model;
 const Knex = require('knex');
 // eslint-disable-next-line
 const expect = require('chai').expect;
+// eslint-disable-next-line
+const mockDate = require('mockdate');
 
 let beforeSoftDelete;
 let afterSoftDelete;
@@ -73,13 +75,13 @@ describe('Soft Delete plugin tests', () => {
     return knex.schema.createTable('TestObjects', (table) => {
       table.increments('id').primary();
       table.string('name');
-      table.boolean('deleted');
-      table.boolean('inactive');
+      table.timestamp('deleted');
+      table.timestamp('inactive');
     })
       .createTable('RelatedObjects', (table) => {
         table.increments('id').primary();
         table.string('name');
-        table.boolean('deleted');
+        table.timestamp('deleted');
       })
       .createTable('JoinTable', (table) => {
         table.increments('id').primary();
@@ -106,18 +108,19 @@ describe('Soft Delete plugin tests', () => {
 
   beforeEach(() => {
     resetLifecycleChecks();
+    mockDate.set(new Date());
     return knex('TestObjects').insert([
       {
         id: 1,
         name: 'Test Object 1',
-        deleted: 0,
-        inactive: 0,
+        deleted: null,
+        inactive: null,
       },
       {
         id: 2,
         name: 'Test Object 2',
-        deleted: 0,
-        inactive: 0,
+        deleted: null,
+        inactive: null,
       },
     ])
       .then(() => {
@@ -125,7 +128,7 @@ describe('Soft Delete plugin tests', () => {
           {
             id: 1,
             name: 'RelatedObject 1',
-            deleted: 0,
+            deleted: null,
           },
         ]);
       })
@@ -144,6 +147,7 @@ describe('Soft Delete plugin tests', () => {
   });
 
   afterEach(() => {
+    mockDate.reset();
     return knex('JoinTable').delete()
       .then(() => { return knex('TestObjects').delete(); })
       .then(() => { return knex('RelatedObjects').delete(); });
@@ -162,7 +166,7 @@ describe('Soft Delete plugin tests', () => {
         });
     });
     describe('when a columnName was not specified', () => {
-      it('should set the "deleted" column to true for any matching records', () => {
+      it('should set the "deleted" column to timestamp for any matching records', () => {
         const TestObject = getModel();
 
         return TestObject.query(knex)
@@ -174,12 +178,12 @@ describe('Soft Delete plugin tests', () => {
               .first();
           })
           .then((result) => {
-            expect(result.deleted).to.equal(1, 'row not marked deleted');
+            expect(result.deleted).to.equal(new Date().toISOString(), 'row not marked deleted');
           });
       });
     });
     describe('when a columnName was specified', () => {
-      it('should set that columnName to true for any matching records', () => {
+      it('should set that columnName to timestamp for any matching records', () => {
         const TestObject = getModel({ columnName: 'inactive' });
 
         return TestObject.query(knex)
@@ -191,7 +195,7 @@ describe('Soft Delete plugin tests', () => {
               .first();
           })
           .then((result) => {
-            expect(result.inactive).to.equal(1, 'row not marked deleted');
+            expect(result.inactive).to.equal(new Date().toISOString(), 'row not marked deleted');
           });
       });
     });
@@ -212,7 +216,7 @@ describe('Soft Delete plugin tests', () => {
               .first();
           })
           .then((result) => {
-            expect(result.inactive).to.equal(1, 'row not marked deleted');
+            expect(result.inactive).to.equal(new Date().toISOString(), 'row not marked deleted');
           });
       });
     });
@@ -278,7 +282,7 @@ describe('Soft Delete plugin tests', () => {
           expect(afterUndelete).to.equal(true, 'after queryContext not set');
         });
     });
-    it('should set the configured delete column to false for any matching records', () => {
+    it('should set the configured delete column to null for any matching records', () => {
       const TestObject = getModel();
 
       // soft delete the row
@@ -298,7 +302,7 @@ describe('Soft Delete plugin tests', () => {
             .first();
         })
         .then((result) => {
-          expect(result.deleted).to.equal(0, 'row not undeleted');
+          expect(result.deleted).to.equal(null, 'row not undeleted');
         });
     });
     describe('when used with .$query()', () => {
@@ -327,7 +331,7 @@ describe('Soft Delete plugin tests', () => {
               .first();
           })
           .then((result) => {
-            expect(result.deleted).to.equal(0, 'row not undeleted');
+            expect(result.deleted).to.equal(null, 'row not undeleted');
           });
       });
     });
@@ -363,7 +367,7 @@ describe('Soft Delete plugin tests', () => {
         })
         .then((result) => {
           const anyDeletedExist = result.reduce((acc, obj) => {
-            return acc || obj.deleted === 1;
+            return acc || obj.deleted !== null;
           }, false);
           expect(anyDeletedExist).to.equal(false, 'a deleted record was included in the result set');
         });
@@ -380,7 +384,7 @@ describe('Soft Delete plugin tests', () => {
         })
         .then((result) => {
           const anyDeletedExist = result.reduce((acc, obj) => {
-            return acc || obj.inactive === 1;
+            return acc || obj.inactive !== null;
           }, false);
           expect(anyDeletedExist).to.equal(false, 'a deleted record was included in the result set');
         });
@@ -446,7 +450,7 @@ describe('Soft Delete plugin tests', () => {
         })
         .then((result) => {
           const allDeleted = result.reduce((acc, obj) => {
-            return acc && obj.deleted === 1;
+            return acc && obj.deleted !== null;
           }, true);
           expect(allDeleted).to.equal(true, 'an undeleted record was included in the result set');
         });
@@ -463,7 +467,7 @@ describe('Soft Delete plugin tests', () => {
         })
         .then((result) => {
           const allDeleted = result.reduce((acc, obj) => {
-            return acc && obj.inactive === 1;
+            return acc && obj.inactive !== null;
           }, true);
           expect(allDeleted).to.equal(true, 'an undeleted record was included in the result set');
         });
@@ -644,9 +648,9 @@ describe('Soft Delete plugin tests', () => {
             .eager('testObjects(notDeleted)');
         })
         .then((result) => {
-          expect(result[0].deleted).to.equal(0, 'deleted row included in base result');
+          expect(result[0].deleted).to.equal(null, 'deleted row included in base result');
           expect(result[0].testObjects.length).to.equal(1, 'wrong number of eager relations loaded');
-          expect(result[0].testObjects[0].inactive).to.equal(0, 'deleted row included in eager relations');
+          expect(result[0].testObjects[0].inactive).to.equal(null, 'deleted row included in eager relations');
         });
     });
   });

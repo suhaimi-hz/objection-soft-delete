@@ -13,7 +13,7 @@ module.exports = (incomingOptions) => {
           softDelete: true,
         });
         const patch = {};
-        patch[options.columnName] = true;
+        patch[options.columnName] = new Date().toISOString();
         return this.patch(patch);
       }
 
@@ -28,20 +28,20 @@ module.exports = (incomingOptions) => {
           undelete: true,
         });
         const patch = {};
-        patch[options.columnName] = false;
+        patch[options.columnName] = null;
         return this.patch(patch);
       }
 
       // provide a way to filter to ONLY deleted records without having to remember the column name
       whereDeleted() {
         // qualify the column name
-        return this.where(`${this.modelClass().tableName}.${options.columnName}`, true);
+        return this.whereNotNull(`${this.modelClass().tableName}.${options.columnName}`);
       }
 
       // provide a way to filter out deleted records without having to remember the column name
       whereNotDeleted() {
         // qualify the column name
-        return this.where(`${this.modelClass().tableName}.${options.columnName}`, false);
+        return this.whereNull(`${this.modelClass().tableName}.${options.columnName}`);
       }
     }
     return class extends Model {
