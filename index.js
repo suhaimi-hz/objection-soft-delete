@@ -1,9 +1,18 @@
 'use strict' // eslint-disable-line
 
+const { format } = require('date-fns');
+
 module.exports = (incomingOptions) => {
   const options = Object.assign({
     columnName: 'deleted',
+    dateFormat: false,
   }, incomingOptions);
+
+  const makeDate = () => {
+    const date = new Date();
+    const { dateFormat } = options;
+    return dateFormat ? format(date, dateFormat) : date.toISOString();
+  };
 
   return (Model) => {
     class SDQueryBuilder extends Model.QueryBuilder {
@@ -13,7 +22,7 @@ module.exports = (incomingOptions) => {
           softDelete: true,
         });
         const patch = {};
-        patch[options.columnName] = new Date().toISOString();
+        patch[options.columnName] = makeDate();
         return this.patch(patch);
       }
 

@@ -108,7 +108,7 @@ describe('Soft Delete plugin tests', () => {
 
   beforeEach(() => {
     resetLifecycleChecks();
-    mockDate.set(new Date());
+    mockDate.set(new Date('1/1/2000'));
     return knex('TestObjects').insert([
       {
         id: 1,
@@ -196,6 +196,23 @@ describe('Soft Delete plugin tests', () => {
           })
           .then((result) => {
             expect(result.inactive).to.equal(new Date().toISOString(), 'row not marked deleted');
+          });
+      });
+    });
+    describe('when a dateFormat was specified', () => {
+      it('should set that columnName to timestamp in dateFormat for any matching records', () => {
+        const TestObject = getModel({ columnName: 'inactive', dateFormat: 'YYYY-MM-DD HH:mm:ss' });
+
+        return TestObject.query(knex)
+          .where('id', 1)
+          .del()
+          .then(() => {
+            return TestObject.query(knex)
+              .where('id', 1)
+              .first();
+          })
+          .then((result) => {
+            expect(result.inactive).to.equal('2000-01-01 00:00:00', 'row not marked deleted');
           });
       });
     });
